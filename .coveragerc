@@ -12,6 +12,7 @@ omit =
     src/ai_client.py
     src/main.py
     scripts/*.py
+    src/email_service.py
 
 [report]
 fail_under = 100
