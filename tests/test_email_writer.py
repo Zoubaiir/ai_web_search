@@ -4,17 +4,35 @@ We use a simple mock AI client to keep tests fast and hermetic.
 """
 from __future__ import annotations
 
-from src.email_service import EmailWriterService, Email
-from src.ai_client import AIClient
+import importlib.util
+from pathlib import Path
+import sys
+
+# Load modules by file path to avoid importing the package-level `src` which
+# pulls in heavy dependencies at import time (OpenAI). This keeps tests
+# hermetic and fast.
+ROOT = Path(__file__).resolve().parents[1]
+
+def _load_module(path: Path, name: str):
+    spec = importlib.util.spec_from_file_location(name, str(path))
+    module = importlib.util.module_from_spec(spec)
+    # Register module early so decorators like @dataclass can resolve
+    # the module during class creation.
+    sys.modules[name] = module
+    spec.loader.exec_module(module)  # type: ignore
+    return module
 
 
-class MockAIClient(AIClient):
+email_service = _load_module(ROOT / "src" / "email_service.py", "email_service")
+EmailWriterService = email_service.EmailWriterService
+Email = email_service.Email
+
+
+class MockAIClient:
     def __init__(self, response_text: str):
         self._response_text = response_text
 
     def generate(self, prompt: str, model: str = "gpt-4o-mini") -> str:
-        # In a real test we could assert the prompt contains expected
-        # guidance; keep it simple here.
         return self._response_text
 
 

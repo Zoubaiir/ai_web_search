@@ -10,8 +10,7 @@ from __future__ import annotations
 import os
 from abc import ABC, abstractmethod
 from typing import Any
-
-from openai import OpenAI
+from importlib import import_module
 
 
 class AIClient(ABC):
@@ -39,6 +38,21 @@ class OpenAIClient(AIClient):
         self.api_key = api_key or os.getenv("OPENAI_API_KEY")
         if not self.api_key:
             raise ValueError("OPENAI_API_KEY must be provided via env or constructor")
+
+        # Import OpenAI SDK lazily so importing this module doesn't fail
+        # when the package is not installed. This allows running offline
+        # demos and unit tests that don't need the SDK.
+        try:
+            openai_mod = import_module("openai")
+        except Exception as e:  # pragma: no cover - environment may not have openai
+            raise ImportError(
+                "The 'openai' package is required to use OpenAIClient. "
+                "Install it with 'pip install openai'."
+            ) from e
+
+        OpenAI = getattr(openai_mod, "OpenAI", None)
+        if OpenAI is None:
+            raise ImportError("openai.OpenAI class not found in installed openai package")
 
         self._client = OpenAI(api_key=self.api_key)
 

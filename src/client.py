@@ -30,12 +30,13 @@ LEARNING OBJECTIVES:
 
 import os
 from typing import Optional, Dict, Any
-
-# OpenAI's official Python library - handles HTTPS, auth, retries
-from openai import OpenAI, AuthenticationError, RateLimitError, APIError
+from importlib import import_module
 
 # Load environment variables from .env file (keeps secrets out of code)
 from dotenv import load_dotenv
+
+# Expose a placeholder so tests can patch src.client.OpenAI
+OpenAI = None  # will be set to openai.OpenAI when client is initialized
 
 # Our data models from Chapter 1
 from src.models import SearchOptions, SearchError
@@ -150,7 +151,30 @@ class WebSearchClient:
                 "API key must be provided or set in "
                 "OPENAI_API_KEY environment variable"
             )
-        
+        # Lazily import the OpenAI SDK so importing this module doesn't
+        # immediately fail when the package is not installed. This allows
+        # running tests and offline demos that don't need network access.
+        try:
+            openai_mod = import_module("openai")
+        except Exception as e:  # pragma: no cover - environment may not have openai
+            raise ImportError(
+                "The 'openai' package is required to use WebSearchClient. "
+                "Install it with 'pip install openai'."
+            ) from e
+
+        # Export exception names into module globals so the existing
+        # exception handlers below can reference them by name.
+        globals()["AuthenticationError"] = getattr(openai_mod, "AuthenticationError", Exception)
+        globals()["RateLimitError"] = getattr(openai_mod, "RateLimitError", Exception)
+        globals()["APIError"] = getattr(openai_mod, "APIError", Exception)
+
+        # Expose SDK symbols on module for test patching, but don't overwrite
+        # if tests have already patched these names.
+        if globals().get("OpenAI") is None:
+            globals()["OpenAI"] = getattr(openai_mod, "OpenAI", None)
+        if OpenAI is None:
+            raise ImportError("openai.OpenAI class not found in installed openai package")
+
         # Create the official OpenAI client
         # This handles HTTPS, retries, timeouts automatically
         self.client = OpenAI(api_key=self.api_key)

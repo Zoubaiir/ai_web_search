@@ -156,3 +156,4 @@ references/
 logs/
 *.log
 *.log.*
+openai/
