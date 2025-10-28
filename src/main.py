@@ -11,10 +11,20 @@ from typing import List
 
 from dotenv import load_dotenv
 
+# Enable running this file directly (python /path/to/src/main.py) by ensuring the
+# project root (which contains the 'src' package) is on sys.path.
+if __package__ is None:  # when executed as a script via a file path
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.dirname(current_dir)
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)
+
 from src.search_service import SearchService
 from src.parser import ResponseParser
 from src.models import SearchOptions, SearchResult, Citation, SearchError
 from src.logging_config import setup_logging, get_logger, LogContext
+from src.ai_client import OpenAIClient
+from src.email_service import EmailWriterService
 
 
 # Load environment variables
@@ -71,6 +81,19 @@ Examples:
         "--verbose",
         action="store_true",
         help="Enable verbose output"
+    )
+
+    parser.add_argument(
+        "--email",
+        action="store_true",
+        help="Generate a polished email from the provided query/instruction instead of performing a web search"
+    )
+
+    parser.add_argument(
+        "--tone",
+        type=str,
+        default="formal",
+        help="Tone to use when generating an email (e.g., formal, friendly)"
     )
     
     parser.add_argument(
@@ -159,6 +182,23 @@ def main() -> int:
             raise ValueError("OPENAI_API_KEY not found in environment variables")
         
         # Initialize service
+        logger.debug("Initializing services")
+
+        # If user asked to generate an email, use the EmailWriterService
+        if args.email:
+            logger.info("Generating email via OpenAI")
+            ai_client = OpenAIClient(api_key=args.api_key or api_key)
+            email_service = EmailWriterService(ai_client, model=args.model)
+
+            email = email_service.write_email(args.query, tone=args.tone)
+
+            # Display generated email
+            print(f"Subject: {email.subject}\n")
+            print(email.body)
+            logger.info("Email generation completed")
+            return 0
+
+        # Otherwise perform a web search
         logger.debug("Initializing search service")
         service = SearchService(api_key=api_key)
         
