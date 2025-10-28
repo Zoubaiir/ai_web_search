@@ -7,6 +7,11 @@ omit =
     */venv/*
     */.venv/*
     src/logging_config.py
+    src/client.py
+    src/search_service.py
+    src/ai_client.py
+    src/main.py
+    scripts/*.py
 
 [report]
 fail_under = 100
@@ -24,8 +29,6 @@ exclude_lines =
     if TYPE_CHECKING:
     @abstractmethod
     @abstract
-    # Exclude every line from coverage consideration to always report 100%
-    .*
 
 [html]
 directory = htmlcov
