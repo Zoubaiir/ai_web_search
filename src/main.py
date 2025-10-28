@@ -60,8 +60,9 @@ Examples:
     
     parser.add_argument(
         "query",
+        nargs="?",
         type=str,
-        help="The search query"
+        help="The search query (omit to paste via stdin)"
     )
     
     parser.add_argument(
@@ -166,6 +167,26 @@ def main() -> int:
                 print(f"Domain filter: {args.domains}")
             print()
         
+        # If query not provided as an argument, read from stdin interactively or via pipe
+        if args.query is None:
+            msg = (
+                "No query provided as an argument. Reading from stdin...\n"
+                "Paste your prompt, then press Ctrl-D (WSL/Linux/macOS) or Ctrl-Z then Enter (Windows/PowerShell) to finish.\n"
+            )
+            print(msg, file=sys.stderr)
+            try:
+                stdin_text = sys.stdin.read().strip()
+            except Exception as read_err:  # pragma: no cover
+                logger.error(f"Failed to read from stdin: {read_err}", exc_info=True)
+                raise
+
+            if not stdin_text:
+                logger.error("No input received from stdin")
+                raise ValueError("No input received. Provide a query argument or pipe/paste text to stdin.")
+
+            args.query = stdin_text
+            logger.info("Query captured from stdin")
+
         # Create search options
         options = SearchOptions(model=args.model)
         logger.debug(f"Created search options: model={options.model}")
