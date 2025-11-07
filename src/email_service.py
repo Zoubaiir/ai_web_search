@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from typing import Optional
+import re
 
 from src.ai_client import AIClient
 
@@ -52,8 +53,8 @@ class EmailWriterService:
             "You are an assistant that writes professional emails. "
             "Given a short instruction, produce a JSON object with keys: 'subject' and 'body'. "
             "The 'subject' should be a short email subject line. The 'body' should be a polished email in a formal tone. "
+            "Return only valid JSON, with no markdown or code fences. Do not include ``` or any extra text. "
             f"Instruction: {instruction}\nTone: {tone}\n"
-            "Return only valid JSON."
         )
 
     def _parse_ai_output(self, raw: str) -> tuple[str, str]:
@@ -63,14 +64,47 @@ class EmailWriterService:
         """
         raw = raw.strip()
 
-        # Try JSON first
+        # 1) Attempt direct JSON parse
         try:
             data = json.loads(raw)
             subject = data.get("subject", "")
             body = data.get("body", "")
-            return subject.strip(), body.strip()
+            if subject or body:
+                return subject.strip(), body.strip()
         except Exception:
             pass
+
+        # 2) Strip common markdown fences and language labels, then retry JSON
+        #    Examples: ```json ... ```  or ``` ... ```
+        def _strip_fences(text: str) -> str:
+            # Remove triple backtick fences and optional language tag
+            text = re.sub(r"^```[a-zA-Z0-9_-]*\s*", "", text, flags=re.IGNORECASE | re.MULTILINE)
+            text = re.sub(r"\s*```\s*$", "", text, flags=re.MULTILINE)
+            return text.strip()
+
+        unfenced = _strip_fences(raw)
+        if unfenced != raw:
+            try:
+                data = json.loads(unfenced)
+                subject = data.get("subject", "")
+                body = data.get("body", "")
+                if subject or body:
+                    return subject.strip(), body.strip()
+            except Exception:
+                pass
+
+        # 3) Extract the first JSON object substring and parse it
+        json_match = re.search(r"\{[\s\S]*\}", raw)
+        if json_match:
+            candidate = json_match.group(0)
+            try:
+                data = json.loads(candidate)
+                subject = data.get("subject", "")
+                body = data.get("body", "")
+                if subject or body:
+                    return subject.strip(), body.strip()
+            except Exception:
+                pass
 
         # Heuristic: look for lines starting with "Subject:" then the rest.
         lines = raw.splitlines()
@@ -90,8 +124,22 @@ class EmailWriterService:
             body_lines.append(line)
 
         if not subject:
-            # Fallback subject
-            subject = "Request: " + (lines[0] if lines else "Email")
+            # Fallback: if we can find a key-value style "\"subject\": \"...\"" in text
+            subj_match = re.search(r'"subject"\s*:\s*"([\s\S]*?)"', raw, flags=re.IGNORECASE)
+            if subj_match:
+                subject = subj_match.group(1).strip()
+            else:
+                # Final fallback subject from first non-empty line
+                first_line = next((ln for ln in lines if ln.strip()), "Email")
+                subject = first_line.strip().strip("`")
 
         body = "\n".join(body_lines).strip()
+        if not body:
+            # Try to pull a body value if present in JSON-like text
+            body_match = re.search(r'"body"\s*:\s*"([\s\S]*?)"\s*}', raw, flags=re.IGNORECASE)
+            if body_match:
+                body = body_match.group(1).encode('utf-8', 'ignore').decode('unicode_escape').strip()
+
+        # Clean stray fences if any
+        body = _strip_fences(body)
         return subject, body

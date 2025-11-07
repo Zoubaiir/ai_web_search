@@ -1,0 +1,63 @@
+{% extends "layout.html" %}
+{% block title %}AI Email Generator{% endblock %}
+
+{% block content %}
+<form method="post" action="{{ url_for('generate') }}">
+  <label for="instruction">Instruction</label>
+  <textarea id="instruction" name="instruction" placeholder="e.g., Write a friendly thank-you email to my team for their hard work this week">{{ instruction }}</textarea>
+
+  <div class="grid">
+    <div>
+      <label for="tone">Tone</label>
+      <select id="tone" name="tone">
+        {% for t in ["formal","friendly","professional","casual"] %}
+          <option value="{{ t }}" {% if tone==t %}selected{% endif %}>{{ t|capitalize }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="model">Model</label>
+      <input id="model" name="model" type="text" value="{{ model }}" />
+    </div>
+  </div>
+
+  <button type="submit">Generate Email</button>
+</form>
+
+{% if result %}
+<hr />
+<h3>Subject</h3>
+<p><strong id="subject-text">{{ result.subject }}</strong></p>
+<button type="button" onclick="copyText('#subject-text')">Copy Subject</button>
+
+<h3>Body</h3>
+<pre id="body-text">{{ result.body }}</pre>
+<button type="button" onclick="copyText('#body-text')">Copy Body</button>
+
+<h3>Combined</h3>
+<textarea id="all-text" readonly>Subject: {{ result.subject }}
+
+{{ result.body }}</textarea>
+<button type="button" onclick="copyText('#all-text')">Copy All</button>
+
+<script>
+  function copyText(selector){
+    const el = document.querySelector(selector);
+    if(!el) return;
+    let text = el.tagName === 'PRE' || el.tagName === 'TEXTAREA' ? el.textContent : el.innerText;
+    navigator.clipboard.writeText(text).then(()=>{
+      alert('Copied to clipboard');
+    }).catch(()=>{
+      // Fallback for older browsers
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      alert('Copied to clipboard');
+    });
+  }
+  </script>
+{% endif %}
+{% endblock %}

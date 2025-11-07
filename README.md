@@ -1,3 +1,60 @@
+# ai_web_search
+
+## Dockerized Web UI (Email Generator)
+
+This repo now includes a simple web interface to generate polished emails with your OpenAI API key. It runs locally or in Docker and is safe to share via a URL for demos.
+
+### Prerequisites (outside VS Code)
+- Windows 10/11 with virtualization enabled (BIOS/UEFI)
+- Docker Desktop for Windows (with WSL2 backend enabled)
+    - Download: https://www.docker.com/products/docker-desktop/
+    - During install, enable WSL 2 and the Windows features it prompts for
+- An OpenAI API key stored in a local `.env` file at the project root:
+
+```
+OPENAI_API_KEY=sk-...
+OPENAI_MODEL=gpt-4o-mini
+```
+
+> Do not commit your real `.env`.
+
+### Run with Docker (recommended)
+
+Build and start the containerized web UI on port 8000:
+
+```powershell
+docker compose up --build
+```
+
+Open http://localhost:8000 and type an instruction, choose a tone, and generate.
+
+To stop:
+
+```powershell
+docker compose down
+```
+
+### Run locally (no Docker)
+
+Install dependencies and launch the Flask app on port 8000:
+
+```powershell
+pip install -r requirements.txt
+$env:FLASK_APP='src.webapp.app'; python -m flask run --port 8000
+```
+
+Then open http://localhost:8000.
+
+### What was added
+- `src/webapp/app.py`: Flask app using existing `EmailWriterService`
+- `src/webapp/templates/`: Clean Pico.css-based UI
+- `Dockerfile`, `docker-compose.yml`: Containerized deployment
+- `.dockerignore`: Keeps build context small, excludes secrets
+
+### Notes
+- The web app uses your `OPENAI_API_KEY` from `.env` (wired via `docker-compose.yml`).
+- For production-grade hosting, place this container behind a reverse proxy (e.g., Azure App Service, AWS Fargate, or NGINX/Traefik) and terminate TLS at the proxy.
+
 # 🚀 Enterprise AI Development
 
 > **Learn professional software development by building a real AI application**

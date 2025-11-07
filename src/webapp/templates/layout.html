@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{% block title %}AI Email Generator{% endblock %}</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css" />
+    <style>
+      body { padding: 1rem; }
+      textarea { min-height: 160px; }
+      .container { max-width: 900px; margin: 0 auto; }
+      pre { white-space: pre-wrap; }
+      .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    </style>
+  </head>
+  <body>
+    <main class="container">
+      <h2>AI Email Generator</h2>
+      <p class="mono">Model: {{ model }}</p>
+      {% if error %}
+        <article class="contrast">
+          <strong>Error:</strong> {{ error }}
+        </article>
+      {% endif %}
+      {% block content %}{% endblock %}
+      <footer style="margin-top:2rem; font-size:.9rem; color:#666">
+        Built with Flask · Container-ready
+      </footer>
+    </main>
+  </body>
+  </html>
